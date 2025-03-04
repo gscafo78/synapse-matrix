@@ -61,6 +61,12 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=postgres      
+    healthcheck:
+      test: ["CMD", "curl", "-fSs", "http://localhost:8008/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     volumes:
       - "./synapse-data:/data"
     networks:
@@ -93,12 +99,14 @@ services:
   coturn:
     image: coturn/coturn:latest
     restart: always
-    command: -n --log-file=stdout
+    command: -c /etc/coturn/turnserver.conf -n --log-file=stdout
     environment:
       - TURN_SECRET=${TURN_SECRET}
       - REALM=${COTURN_SERVER_NAME}
       - MIN_PORT=49160
       - MAX_PORT=49200
+    volumes:
+      - "./coturn/turnserver.conf:/etc/coturn/turnserver.conf"
     ports:
       - "3478:3478"
       - "3478:3478/udp"
