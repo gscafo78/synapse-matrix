@@ -41,6 +41,7 @@ nginx.conf
 /letsencrypt
 homeserver.yaml
 prompt.txt
+tocken.txt
 
 # System Files
 .DS_Store
