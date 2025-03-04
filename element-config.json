@@ -1,0 +1,12 @@
+{
+    "default_server_config": {
+      "m.homeserver": {
+        "base_url": "https://matrixacd.duckdns.org",
+        "server_name": "matrixacd.duckdns.org"
+      }
+    },
+    "features": {
+      "feature_voice_calls": true,
+      "feature_video_calls": true
+    }
+  }

@@ -39,9 +39,11 @@ testem.log
 /typings
 nginx.conf
 /letsencrypt
+/*-data
 homeserver.yaml
 prompt.txt
 tocken.txt
+turnserver.conf
 
 # System Files
 .DS_Store

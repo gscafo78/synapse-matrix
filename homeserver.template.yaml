@@ -48,7 +48,7 @@ url_preview_ip_range_blacklist:
   - 'ff00::/8'
   - 'fec0::/10'
 
-registration_shared_secret: ${REGISTRATION_SECRET}
+registration_shared_secret: "${REGISTRATION_SECRET}"
 report_stats: true
 macaroon_secret_key: "${MACAROON_SECRET_KEY}"
 

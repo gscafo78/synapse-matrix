@@ -41,7 +41,7 @@ services:
     networks:
       - matrix
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,7 +50,7 @@ services:
     image: matrixdotorg/synapse:latest
     restart: always
     depends_on:
-      - serviceName: postgres
+      postgres:
         condition: service_healthy
     environment:
       - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
@@ -66,9 +66,12 @@ services:
     networks:
       - matrix
     labels:
-      - "traefik.http.routers.synapse.rule=Host(${SYNAPSE_SERVER_NAME})"
-      - "traefik.http.routers.synapse.tls=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.synapse.rule=Host(`${SYNAPSE_SERVER_NAME}`)"
+      - "traefik.http.routers.synapse.entrypoints=websecure"
       - "traefik.http.routers.synapse.tls.certresolver=leresolver"
+      - "traefik.http.services.synapse.loadbalancer.server.port=8008"
+
 
   element:
     image: vectorim/element-web:latest
@@ -81,9 +84,11 @@ services:
     networks:
       - matrix
     labels:
-      - "traefik.http.routers.element.rule=Host(${ELEMENT_SERVER_NAME})"
-      - "traefik.http.routers.element.tls=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.element.rule=Host(`${ELEMENT_SERVER_NAME}`)"
+      - "traefik.http.routers.element.entrypoints=websecure"
       - "traefik.http.routers.element.tls.certresolver=leresolver"
+      - "traefik.http.services.element.loadbalancer.server.port=80"
 
   coturn:
     image: coturn/coturn:latest
