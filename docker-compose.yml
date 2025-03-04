@@ -1,0 +1,110 @@
+# # Creazione utente e database (se necessario)
+# docker exec -it postgres psql -U synapse_user -d synapse -c "CREATE USER synapse_user WITH PASSWORD 'your_strong_password';"
+# docker exec -it postgres psql -U synapse_user -d synapse -c "CREATE DATABASE synapse ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;"
+
+# # Migrazione da SQLite a PostgreSQL (se stai migrando):
+# docker run -it --rm \
+#   -v ./synapse-data:/data \
+#   matrixdotorg/synapse:latest migrate \
+#   --config-path=/data/homeserver.yaml \
+#   --postgres-config "host=postgres user=synapse_user password=your_strong_password dbname=synapse"
+
+services:
+  traefik:
+    image: traefik:v2.10
+    command:
+      - --providers.docker
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.leresolver.acme.tlschallenge=true
+      - --certificatesresolvers.leresolver.acme.email=${CERTBOT_MAIL}
+      - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_CONFIG_FILE: /etc/postgresql/postgresql.conf
+      POSTGRES_INITDB_ARGS: --encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - "./postgres-data:/var/lib/postgresql/data"
+      - "./postgres-config:/etc/postgresql"
+    networks:
+      - matrix
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse_user -d synapse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  synapse:
+    image: matrixdotorg/synapse:latest
+    restart: always
+    environment:
+      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+      - SYNAPSE_REPORT_STATS=no
+      - SYNAPSE_CONFIG_DIR=/data
+      - SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=postgres      
+    volumes:
+      - "./synapse-data:/data"
+    networks:
+      - matrix
+    labels:
+      - "traefik.http.routers.synapse.rule=Host(${SYNAPSE_SERVER_NAME})"
+      - "traefik.http.routers.synapse.tls=true"
+      - "traefik.http.routers.synapse.tls.certresolver=leresolver"
+
+  element:
+    image: vectorim/element-web:latest
+    restart: always
+    environment:
+      - VIRTUAL_HOST=${ELEMENT_SERVER_NAME}
+      - VIRTUAL_PORT=80
+    volumes:
+      - "./element-config.json:/app/config.json"
+    networks:
+      - matrix
+    labels:
+      - "traefik.http.routers.element.rule=Host(${ELEMENT_SERVER_NAME})"
+      - "traefik.http.routers.element.tls=true"
+      - "traefik.http.routers.element.tls.certresolver=leresolver"
+
+  coturn:
+    image: coturn/coturn:latest
+    restart: always
+    command: -n --log-file=stdout
+    environment:
+      - TURN_SECRET=${TURN_SECRET}
+      - REALM=${COTURN_SERVER_NAME}
+      - MIN_PORT=49160
+      - MAX_PORT=49200
+    ports:
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "5349:5349"
+      - "5349:5349/udp"
+      - "49160-49200:49160-49200/udp"
+    networks:
+      - matrix
+
+networks:
+  matrix:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  synapse-data:
+  letsencrypt:
