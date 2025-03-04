@@ -49,6 +49,9 @@ services:
   synapse:
     image: matrixdotorg/synapse:latest
     restart: always
+    depends_on:
+      - serviceName: postgres
+        condition: service_healthy
     environment:
       - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
       - SYNAPSE_REPORT_STATS=no
