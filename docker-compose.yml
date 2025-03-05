@@ -12,6 +12,7 @@
 services:
   traefik:
     image: traefik:v2.10
+    container_name: synapse-traefik
     command:
       - --providers.docker
       - --entrypoints.web.address=:80
@@ -30,6 +31,7 @@ services:
 
   postgres:
     image: postgres:15-alpine
+    container_name: synapse-postgres
     restart: always
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -38,7 +40,7 @@ services:
       POSTGRES_CONFIG_FILE: /etc/postgresql/postgresql.conf
       POSTGRES_INITDB_ARGS: --encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
-      - "./postgres-data:/var/lib/postgresql/data"
+      - "postgres-data:/var/lib/postgresql/data"
       - "./postgres-config:/etc/postgresql"
     networks:
       - matrix
@@ -50,10 +52,8 @@ services:
 
   synapse:
     image: matrixdotorg/synapse:latest
+    container_name: synapse-app
     restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
       - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
       - SYNAPSE_REPORT_STATS=no
@@ -83,6 +83,7 @@ services:
 
   element:
     image: vectorim/element-web:latest
+    container_name: synapse-element
     restart: always
     environment:
       - VIRTUAL_HOST=${ELEMENT_SERVER_NAME}
@@ -100,6 +101,7 @@ services:
 
   coturn:
     image: coturn/coturn:latest
+    container_name: synapse-coturn
     restart: always
     command: -c /etc/coturn/turnserver.conf -n --log-file=stdout
     environment:
@@ -124,5 +126,6 @@ networks:
 
 volumes:
   postgres-data:
+    driver: local
   synapse-data:
   letsencrypt:
