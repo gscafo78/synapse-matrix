@@ -44,6 +44,7 @@ homeserver.yaml
 prompt.txt
 tocken.txt
 turnserver.conf
+element-config.json
 
 # System Files
 .DS_Store

@@ -1,8 +1,8 @@
 {
     "default_server_config": {
       "m.homeserver": {
-        "base_url": "https://matrixacd.duckdns.org",
-        "server_name": "matrixacd.duckdns.org"
+        "base_url": "https://${SYNAPSE_SERVER_NAME}",
+        "server_name": "${SYNAPSE_SERVER_NAME}"
       }
     },
     "features": {
