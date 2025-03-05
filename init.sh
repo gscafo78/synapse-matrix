@@ -1,7 +1,8 @@
 #!/bin/bash
 
 if [ ! -f ./synapse-data/homeserver.yaml ]; then
-  echo "You have to run first 'docker compose run --rm synapse-init'" 
+  docker compose run --rm synapse generate
+  echo "Now, update the .env file with the new data, then run this script once."
 else
   apt update -y
   apt install gettext-base -y
