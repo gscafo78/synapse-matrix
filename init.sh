@@ -10,4 +10,5 @@ else
   envsubst < ./coturn/turnserver.template.conf > ./coturn/turnserver.conf
   envsubst < ./homeserver.template.yaml > ./synapse-data/homeserver.yaml
   envsubst < ./element-config.template.json > ./element-config.json
+  openssl req -x509 -newkey rsa:4096 -keyout ./coturn/privkey.pem -out ./coturn/fullchain.pem -days 3650 -nodes -subj "/CN=${COTURN_SERVER_NAME}"
 fi

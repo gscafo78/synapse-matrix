@@ -63,6 +63,8 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=postgres      
+    ports:
+      - "127.0.0.1:8008:8008"
     healthcheck:
       test: ["CMD", "curl", "-fSs", "http://localhost:8008/health"]
       interval: 15s
@@ -129,7 +131,7 @@ services:
   #   volumes:
   #     - "./synapse-data:/data"
   #   entrypoint: |
-  #     bash -c "register_new_matrix_user -c /data/homeserver.yaml -u @admin:${SYNAPSE_SERVER_NAME} -p ${ADMIN_PASSWORD} -a"
+  #     bash -c "register_new_matrix_user -c /data/homeserver.yaml -u @admin:${SYNAPSE_SERVER_NAME} -p ${ADMIN_PASSWORD} -a http://localhost:8008"
   #   environment:
   #     - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
   #     - POSTGRES_DB=${POSTGRES_DB}
