@@ -80,7 +80,6 @@ services:
       - "traefik.http.routers.synapse.tls.certresolver=leresolver"
       - "traefik.http.services.synapse.loadbalancer.server.port=8008"
 
-
   element:
     image: vectorim/element-web:latest
     container_name: synapse-element
@@ -111,6 +110,8 @@ services:
       - MAX_PORT=49200
     volumes:
       - "./coturn/turnserver.conf:/etc/coturn/turnserver.conf"
+      - "./letsencrypt/fullchain.pem:/etc/coturn/fullchain.pem"
+      - "./letsencrypt/privkey.pem:/etc/coturn/privkey.pem"
     ports:
       - "3478:3478"
       - "3478:3478/udp"
