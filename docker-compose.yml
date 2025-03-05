@@ -19,6 +19,8 @@ services:
       - --certificatesresolvers.leresolver.acme.tlschallenge=true
       - --certificatesresolvers.leresolver.acme.email=${CERTBOT_MAIL}
       - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
+    networks:
+      - matrix
     ports:
       - "80:80"
       - "443:443"
