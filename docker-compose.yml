@@ -121,23 +121,23 @@ services:
     networks:
       - matrix
 
-  create-admin:
-    image: matrixdotorg/synapse:latest
-    container_name: synapse-create-admin
-    depends_on:
-      - postgres
-    volumes:
-      - "./synapse-data:/data"
-    entrypoint: |
-      bash -c "register_new_matrix_user -c /data/homeserver.yaml -u @admin:${SYNAPSE_SERVER_NAME} -p ${ADMIN_PASSWORD} -a"
-    environment:
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=postgres
-    networks:
-      - matrix
+  # create-admin:
+  #   image: matrixdotorg/synapse:latest
+  #   container_name: synapse-create-admin
+  #   depends_on:
+  #     - postgres
+  #   volumes:
+  #     - "./synapse-data:/data"
+  #   entrypoint: |
+  #     bash -c "register_new_matrix_user -c /data/homeserver.yaml -u @admin:${SYNAPSE_SERVER_NAME} -p ${ADMIN_PASSWORD} -a"
+  #   environment:
+  #     - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+  #     - POSTGRES_DB=${POSTGRES_DB}
+  #     - POSTGRES_USER=${POSTGRES_USER}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #     - POSTGRES_HOST=postgres
+  #   networks:
+  #     - matrix
 
   synapse-init:
     image: matrixdotorg/synapse:latest

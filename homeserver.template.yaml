@@ -60,9 +60,9 @@ trusted_key_servers:
   - server_name: "matrix.org"
 
 turn_uris:
-  - "turn:${COTURN_SERVER_NAME}:3478?transport=udp"
-  - "turn:${COTURN_SERVER_NAME}:3478?transport=tcp"
-  - "turns:${COTURN_SERVER_NAME}:5349?transport=tcp"
+  - "turn:${ELEMENT_SERVER_NAME}:3478?transport=udp"
+  - "turn:${ELEMENT_SERVER_NAME}:3478?transport=tcp"
+  - "turns:${ELEMENT_SERVER_NAME}:5349?transport=tcp"
 
 turn_shared_secret: ${TURN_SECRET}
 turn_user_lifetime: 86400
