@@ -46,6 +46,8 @@ tocken.txt
 turnserver.conf
 element-config.json
 *.pem
+/modsec/csr
+/modsec/data
 
 # System Files
 .DS_Store
