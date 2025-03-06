@@ -1,6 +1,7 @@
 #!/bin/bash
 
 if [ ! -f ./synapse-data/homeserver.yaml ]; then
+  wget -qO- https://raw.githubusercontent.com/gscafo78/setup/main/inizialsetup/install_docker.sh | bash
   docker compose run --rm synapse generate
   echo "Now, update the .env file with the new data, then run this script once."
 else

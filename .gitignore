@@ -45,6 +45,7 @@ prompt.txt
 tocken.txt
 turnserver.conf
 element-config.json
+*.pem
 
 # System Files
 .DS_Store
