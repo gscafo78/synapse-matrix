@@ -1,33 +1,58 @@
-# # Creazione utente e database (se necessario)
-# docker exec -it postgres psql -U synapse_user -d synapse -c "CREATE USER synapse_user WITH PASSWORD 'your_strong_password';"
-# docker exec -it postgres psql -U synapse_user -d synapse -c "CREATE DATABASE synapse ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;"
-
-# # Migrazione da SQLite a PostgreSQL (se stai migrando):
-# docker run -it --rm \
-#   -v ./synapse-data:/data \
-#   matrixdotorg/synapse:latest migrate \
-#   --config-path=/data/homeserver.yaml \
-#   --postgres-config "host=postgres user=synapse_user password=your_strong_password dbname=synapse"
-
 services:
   traefik:
-    image: traefik:v2.10
-    container_name: synapse-traefik
-    command:
-      - --providers.docker
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.leresolver.acme.tlschallenge=true
-      - --certificatesresolvers.leresolver.acme.email=${CERTBOT_MAIL}
-      - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
-    networks:
-      - matrix
+    image: traefik:3.0.1
     ports:
       - "80:80"
       - "443:443"
+      - "127.0.0.1:8080:8080"
+    command:
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --experimental.plugins.traefik-modsecurity-plugin.modulename=github.com/acouvreur/traefik-modsecurity-plugin
+      - --experimental.plugins.traefik-modsecurity-plugin.version=v1.3.0
+      - --providers.docker=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.leresolver.acme.tlschallenge=true
+      - --api.middlewares=traefik-auth.basicauth.users=${TRAEFIK_AUTH_CREDENTIALS} # Aggiungi autenticazione Basic per il dashboard
+      - --certificatesresolvers.leresolver.acme.email=${CERTBOT_MAIL}
+      - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
     volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
       - "./letsencrypt:/letsencrypt"
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - matrix
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`${TREAFIK_SERVER_NAME}`)
+      - traefik.http.routers.api.service=api@internal
+      - traefik.http.routers.api.middlewares=traefik-auth
+      - traefik.http.routers.api.tls=true
+      - traefik.http.services.traefik.loadbalancer.server.port=8080
+      - traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.modSecurityUrl=http://waf:8080
+      - traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.maxBodySize=10485760
+
+  waf:
+    image: owasp/modsecurity-crs:4.2.0-apache-202405220605
+    environment:
+      - PARANOIA=1
+      - ANOMALY_INBOUND=10
+      - ANOMALY_OUTBOUND=5
+      - BACKEND=http://dummy
+    networks:
+      - matrix
+
+  dummy:
+    image: traefik/whoami
+
+  website:
+    image: traefik/whoami
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.website.rule=PathPrefix(`/website`)
+      - traefik.http.routers.website.middlewares=waf@docker
+    networks:
+      - matrix
 
   postgres:
     image: postgres:15-alpine
@@ -45,7 +70,7 @@ services:
     networks:
       - matrix
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -95,7 +120,7 @@ services:
       - matrix
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.element.rule=Host(`${ELEMENT_SERVER_NAME}`)"
+      - "traefik.http.routers.element.rule=Host(`$${ELEMENT_SERVER_NAME}`)"
       - "traefik.http.routers.element.entrypoints=websecure"
       - "traefik.http.routers.element.tls.certresolver=leresolver"
       - "traefik.http.services.element.loadbalancer.server.port=80"
@@ -117,9 +142,12 @@ services:
     ports:
       - "3478:3478"
       - "3478:3478/udp"
-      - "5349:5349"
-      - "5349:5349/udp"
+      # - "5349:5349"
+      # - "5349:5349/udp"
       - "49160-49200:49160-49200/udp"
+    coturn:
+      depends_on:
+        - traefik
     networks:
       - matrix
 
