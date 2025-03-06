@@ -12,5 +12,11 @@ else
   envsubst < ./homeserver.template.yaml > ./synapse-data/homeserver.yaml
   envsubst < ./element-config.template.json > ./element-config.json
   openssl req -x509 -newkey rsa:4096 -keyout ./letsencrypt/privkey.pem -out ./letsencrypt/fullchain.pem -days 3650 -nodes -subj "/CN=${COTURN_SERVER_NAME}"
-
+  
+  # Clona le regole OWASP CRS
+  git clone https://github.com/coreruleset/coreruleset ./modsec/crs
+  # Crea le directory necessarie
+  mkdir -p ./modsec/{conf,crs,custom-rules,data}
+  # Sostituisci la configurazione CRS
+  cp ./modsec/crs/crs-setup.conf.example ./modsec/crs/crs-setup.conf
 fi

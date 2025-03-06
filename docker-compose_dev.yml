@@ -33,7 +33,7 @@ services:
       - traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.modSecurityUrl=http://waf:80
       - traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.maxBodySize=10485760
   waf:
-    image: owasp/modsecurity-crs:4.2.0-apache
+    image: owasp/modsecurity
     volumes:
       - ./modsec/conf/modsecurity.conf:/etc/modsecurity/modsecurity.conf
       - ./modsec/crs:/etc/modsecurity.d/owasp-crs:ro
@@ -150,8 +150,7 @@ services:
       # - "5349:5349"
       # - "5349:5349/udp"
       - "49160-49200:49160-49200/udp"
-    coturn:
-      depends_on:
+    depends_on:
         - traefik
     networks:
       - matrix
