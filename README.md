@@ -34,7 +34,7 @@ This repository contains the configuration and setup for a Synapse Matrix server
 5. Register user:
     ```sh
     docker compose exec -it synapse /bin/bash
-    register_new_matrix_user -c /etc/matrix-synapse/homeserver.yaml http://localhost:8008
+    register_new_matrix_user -c /data/homeserver.yaml http://localhost:8008
     ```
 
 ## Services
