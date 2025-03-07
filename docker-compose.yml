@@ -1,13 +1,3 @@
-# # Creazione utente e database (se necessario)
-# docker exec -it postgres psql -U synapse_user -d synapse -c "CREATE USER synapse_user WITH PASSWORD 'your_strong_password';"
-# docker exec -it postgres psql -U synapse_user -d synapse -c "CREATE DATABASE synapse ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;"
-
-# # Migrazione da SQLite a PostgreSQL (se stai migrando):
-# docker run -it --rm \
-#   -v ./synapse-data:/data \
-#   matrixdotorg/synapse:latest migrate \
-#   --config-path=/data/homeserver.yaml \
-#   --postgres-config "host=postgres user=synapse_user password=your_strong_password dbname=synapse"
 
 services:
   traefik:
@@ -15,6 +5,8 @@ services:
     container_name: synapse-traefik
     command:
       - --providers.docker
+      - --api.dashboard=true
+      - --api.insecure=true
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.leresolver.acme.tlschallenge=true
@@ -25,6 +17,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "127.0.0.1:8080:8080"
     volumes:
       - "./letsencrypt:/letsencrypt"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
