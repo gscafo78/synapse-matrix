@@ -1,7 +1,7 @@
 
 services:
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3.1
     container_name: synapse-traefik
     command:
       - --providers.docker
@@ -116,17 +116,17 @@ services:
     networks:
       - matrix
 
-  synapse-init:
-    image: matrixdotorg/synapse:latest
-    container_name: synapse-generate
-    volumes:
-      - "./synapse-data:/data"
-    entrypoint:  |
-      bash -c "synapse generate -c /data/homeserver.yaml --server-name ${SYNAPSE_SERVER_NAME} --report-stats=no"
-    environment:
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
-    networks:
-      - matrix
+  # synapse-init:
+  #   image: matrixdotorg/synapse:latest
+  #   container_name: synapse-generate
+  #   volumes:
+  #     - "./synapse-data:/data"
+  #   entrypoint:  |
+  #     bash -c "synapse generate -c /data/homeserver.yaml --server-name ${SYNAPSE_SERVER_NAME} --report-stats=no"
+  #   environment:
+  #     - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+  #   networks:
+  #     - matrix
 
 networks:
   matrix:
