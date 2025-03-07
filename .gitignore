@@ -47,7 +47,7 @@ turnserver.conf
 element-config.json
 *.pem
 /modsec/csr
-/modsec/data
+/modsec/custom-rules
 
 # System Files
 .DS_Store

@@ -1,63 +1,65 @@
+# # Creazione utente e database (se necessario)
+# docker exec -it postgres psql -U synapse_user -d synapse -c "CREATE USER synapse_user WITH PASSWORD 'your_strong_password';"
+# docker exec -it postgres psql -U synapse_user -d synapse -c "CREATE DATABASE synapse ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;"
+
+# # Migrazione da SQLite a PostgreSQL (se stai migrando):
+# docker run -it --rm \
+#   -v ./synapse-data:/data \
+#   matrixdotorg/synapse:latest migrate \
+#   --config-path=/data/homeserver.yaml \
+#   --postgres-config "host=postgres user=synapse_user password=your_strong_password dbname=synapse"
+
+# services:
+  # traefik:
+  #   image: traefik:v3.0.1
+  #   container_name: synapse-traefik
+  #   command:
+  #     - --api.dashboard=true
+  #     - --api.insecure=true
+  #     - --providers.docker
+  #     - --entrypoints.web.address=:80
+  #     - --entrypoints.websecure.address=:443
+  #     - --certificatesresolvers.leresolver.acme.tlschallenge=true
+  #     - --certificatesresolvers.leresolver.acme.email=${CERTBOT_MAIL}
+  #     - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
+  #     - --experimental.plugins.traefik-modsecurity-plugin.modulename=github.com/acouvreur/traefik-modsecurity-plugin
+  #     - --experimental.plugins.traefik-modsecurity-plugin.version=v1.3.0
+  #   networks:
+  #     - matrix
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - "./letsencrypt:/letsencrypt"
+  #     - "./modsec/crs:/etc/coraza-rules"  # Monta la directory delle regole CRS
+  #     - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    # labels:
+      # - "traefik.http.middlewares.waf.plugin.coraza.rules=Include /etc/coraza-rules/crs-setup.conf\nInclude /etc/coraza-rules/rules/*.conf"
+
 services:
   traefik:
-    image: traefik:3.0.1
-    ports:
-      - "80:80"
-      - "443:443"
-      - "127.0.0.1:8080:8080"
+    image: traefik:v3.0.1
+    container_name: synapse-traefik
     command:
       - --api.dashboard=true
       - --api.insecure=true
-      - --experimental.plugins.traefik-modsecurity-plugin.modulename=github.com/acouvreur/traefik-modsecurity-plugin
-      - --experimental.plugins.traefik-modsecurity-plugin.version=v1.3.0
-      - --providers.docker=true
+      - --providers.docker
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.leresolver.acme.tlschallenge=true
-      # - --api.middlewares=traefik-auth.basicauth.users=admin:${TRAEFIK_HASHED_PASSWORD} # Aggiungi autenticazione Basic per il dashboard
       - --certificatesresolvers.leresolver.acme.email=${CERTBOT_MAIL}
       - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
+      - --experimental.plugins.traefik-modsecurity-plugin.modulename=github.com/acouvreur/traefik-modsecurity-plugin
+      - --experimental.plugins.traefik-modsecurity-plugin.version=v1.3.0
+    networks:
+      - matrix
+    ports:
+      - "80:80"
+      - "443:443"
     volumes:
-      - '/var/run/docker.sock:/var/run/docker.sock'
       - "./letsencrypt:/letsencrypt"
-    networks:
-      - matrix
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.api.rule=Host(`${TREAFIK_SERVER_NAME}`)
-      - traefik.http.routers.api.service=api@internal
-      # - traefik.http.routers.api.middlewares=traefik-auth
-      - traefik.http.routers.api.tls=true
-      - traefik.http.routers.api.tls.certresolver=leresolver
-      - traefik.http.services.traefik.loadbalancer.server.port=8080
-      - traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.modSecurityUrl=http://waf:80
-      - traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.maxBodySize=10485760
-  waf:
-    image: owasp/modsecurity
-    volumes:
-      - ./modsec/conf/modsecurity.conf:/etc/modsecurity/modsecurity.conf
-      - ./modsec/crs:/etc/modsecurity.d/owasp-crs:ro
-      - ./modsec/custom-rules:/etc/modsecurity.d/custom-rules:ro
-    environment:
-      - PARANOIA=1
-      - ANOMALY_INBOUND=10
-      - ANOMALY_OUTBOUND=5
-      - BACKEND=http://dummy
-      - MODSECURITY_RULE_ENGINE=On
-    networks:
-      - matrix
-
-  dummy:
-    image: traefik/whoami
-
-  website:
-    image: traefik/whoami
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.website.rule=PathPrefix(`/website`)
-      - traefik.http.routers.website.middlewares=waf@docker
-    networks:
-      - matrix
+      - "./modsec/crs:/etc/coraza-rules"  # Monta la directory delle regole CRS
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
 
   postgres:
     image: postgres:15-alpine
@@ -75,7 +77,7 @@ services:
     networks:
       - matrix
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -110,7 +112,10 @@ services:
       - "traefik.http.routers.synapse.rule=Host(`${SYNAPSE_SERVER_NAME}`)"
       - "traefik.http.routers.synapse.entrypoints=websecure"
       - "traefik.http.routers.synapse.tls.certresolver=leresolver"
+      - "traefik.http.routers.synapse.middlewares=waf"  # Associa il middleware WAF
       - "traefik.http.services.synapse.loadbalancer.server.port=8008"
+      - "traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.modSecurityUrl=/etc/coraza-rules"
+      - "traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.rules=Include /etc/coraza-rules/crs-setup.conf\nInclude /etc/coraza-rules/rules/*.conf"
 
   element:
     image: vectorim/element-web:latest
@@ -125,10 +130,13 @@ services:
       - matrix
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.element.rule=Host(`$${ELEMENT_SERVER_NAME}`)"
+      - "traefik.http.routers.element.rule=Host(`${ELEMENT_SERVER_NAME}`)"
       - "traefik.http.routers.element.entrypoints=websecure"
       - "traefik.http.routers.element.tls.certresolver=leresolver"
       - "traefik.http.services.element.loadbalancer.server.port=80"
+      - "traefik.http.routers.element.middlewares=waf"  # Associa il middleware WAF
+      - "traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.modSecurityUrl=/etc/coraza-rules"
+      - "traefik.http.middlewares.waf.plugin.traefik-modsecurity-plugin.rules=Include /etc/coraza-rules/crs-setup.conf\nInclude /etc/coraza-rules/rules/*.conf"
 
   coturn:
     image: coturn/coturn:latest
@@ -147,25 +155,23 @@ services:
     ports:
       - "3478:3478"
       - "3478:3478/udp"
-      # - "5349:5349"
-      # - "5349:5349/udp"
+      - "5349:5349"
+      - "5349:5349/udp"
       - "49160-49200:49160-49200/udp"
-    depends_on:
-        - traefik
     networks:
       - matrix
 
-  synapse-init:
-    image: matrixdotorg/synapse:latest
-    container_name: synapse-generate
-    volumes:
-      - "./synapse-data:/data"
-    entrypoint:  |
-      bash -c "synapse generate -c /data/homeserver.yaml --server-name ${SYNAPSE_SERVER_NAME} --report-stats=no"
-    environment:
-      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
-    networks:
-      - matrix
+  # synapse-init:
+  #   image: matrixdotorg/synapse:latest
+  #   container_name: synapse-generate
+  #   volumes:
+  #     - "./synapse-data:/data"
+  #   entrypoint:  |
+  #     bash -c "synapse generate -c /data/homeserver.yaml --server-name ${SYNAPSE_SERVER_NAME} --report-stats=no"
+  #   environment:
+  #     - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME}
+  #   networks:
+  #     - matrix
 
 networks:
   matrix:
