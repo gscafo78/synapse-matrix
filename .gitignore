@@ -38,6 +38,7 @@ token.txt
 testem.log
 /typings
 nginx.conf
+/certbot
 /letsencrypt
 /*-data
 homeserver.yaml
@@ -48,6 +49,7 @@ element-config.json
 *.pem
 /modsec/csr
 /modsec/custom-rules
+*.log
 
 # System Files
 .DS_Store
