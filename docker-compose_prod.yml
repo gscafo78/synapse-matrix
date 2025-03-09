@@ -23,6 +23,24 @@ services:
       retries: 3
       start_period: 10s
 
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    container_name: crowdsec
+    environment:
+      - COLLECTIONS=crowdsecurity/nginx
+    volumes:
+      - ./crowdsec/config:/etc/crowdsec
+      - ./crowdsec/data:/var/lib/crowdsec/data
+      - ./waf/logs:/var/log/nginx
+    depends_on:
+      waf-nginx:
+        condition: service_healthy
+    networks:
+      - matrix
+    ports:
+      - "127.0.0.1:8080:8080"  # Porta per l'API di CrowdSec
+    restart: unless-stopped
+
   certbot-renew:
     image: 4ss078/certbot:latest
     build:
@@ -100,12 +118,6 @@ services:
       - "./synapse-data:/data"
     networks:
       - matrix
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.synapse.rule=Host(`${SYNAPSE_SERVER_NAME}`)"
-    #   - "traefik.http.routers.synapse.entrypoints=websecure"
-    #   - "traefik.http.routers.synapse.tls.certresolver=leresolver"
-    #   - "traefik.http.services.synapse.loadbalancer.server.port=8008"
 
   element:
     image: vectorim/element-web:latest
@@ -118,12 +130,12 @@ services:
       - "./element-config.json:/app/config.json"
     networks:
       - matrix
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.element.rule=Host(`${ELEMENT_SERVER_NAME}`)"
-    #   - "traefik.http.routers.element.entrypoints=websecure"
-    #   - "traefik.http.routers.element.tls.certresolver=leresolver"
-    #   - "traefik.http.services.element.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "80"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   coturn:
     image: coturn/coturn:latest
@@ -145,6 +157,12 @@ services:
       - "5349:5349"
       - "5349:5349/udp"
       - "49160-49200:49160-49200/udp"
+    healthcheck:
+      test: ["CMD", "echo", "-n", ">", "/dev/tcp/localhost/3478"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s    
     networks:
       - matrix
 

@@ -50,6 +50,7 @@ element-config.json
 /modsec/csr
 /modsec/custom-rules
 *.log
+/crowdsec
 
 # System Files
 .DS_Store
