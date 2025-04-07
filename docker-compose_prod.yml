@@ -23,23 +23,23 @@ services:
       retries: 3
       start_period: 10s
 
-  crowdsec:
-    image: crowdsecurity/crowdsec:latest
-    container_name: crowdsec
-    environment:
-      - COLLECTIONS=crowdsecurity/nginx
-    volumes:
-      - ./crowdsec/config:/etc/crowdsec
-      - ./crowdsec/data:/var/lib/crowdsec/data
-      - ./waf/logs:/var/log/nginx
-    depends_on:
-      waf-nginx:
-        condition: service_healthy
-    networks:
-      - matrix
-    ports:
-      - "127.0.0.1:8080:8080"  # Porta per l'API di CrowdSec
-    restart: unless-stopped
+  # crowdsec:
+  #   image: crowdsecurity/crowdsec:latest
+  #   container_name: crowdsec
+  #   environment:
+  #     - COLLECTIONS=crowdsecurity/nginx
+  #   volumes:
+  #     - ./crowdsec/config:/etc/crowdsec
+  #     - ./crowdsec/data:/var/lib/crowdsec/data
+  #     - ./waf/logs:/var/log/nginx
+  #   depends_on:
+  #     waf-nginx:
+  #       condition: service_healthy
+  #   networks:
+  #     - matrix
+  #   ports:
+  #     - "127.0.0.1:8080:8080"  # Porta per l'API di CrowdSec
+  #   restart: unless-stopped
 
   certbot-renew:
     image: 4ss078/certbot:latest

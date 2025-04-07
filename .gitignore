@@ -51,6 +51,7 @@ element-config.json
 /modsec/custom-rules
 *.log
 /crowdsec
+/rssapp
 
 # System Files
 .DS_Store

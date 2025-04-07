@@ -1,26 +1,57 @@
 
 services:
-  traefik:
-    image: traefik:v3.1
-    container_name: synapse-traefik
-    command:
-      - --providers.docker
-      - --api.dashboard=true
-      - --api.insecure=true
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.leresolver.acme.tlschallenge=true
-      - --certificatesresolvers.leresolver.acme.email=${CERTBOT_MAIL}
-      - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
-    networks:
-      - matrix
+  waf-nginx:
+    image: 4ss078/waf-nginx:latest
+    container_name: waf-nginx
     ports:
       - "80:80"
       - "443:443"
-      - "127.0.0.1:8080:8080"
     volumes:
-      - "./letsencrypt:/letsencrypt"
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - ./waf/conf.d:/etc/nginx/conf.d
+      - ./waf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./waf/user-rules:/etc/nginx/modsec/user-rules
+      - ./certbot/letsencrypt:/etc/letsencrypt
+      - ./waf/logs:/var/log/nginx
+      - ./www:/var/www/certbot
+    restart: unless-stopped
+    networks:
+      - matrix
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  certbot-renew:
+    image: 4ss078/certbot:latest
+    build:
+      context: ./certbot/build
+      dockerfile: Dockerfile
+    container_name: certbot-renew
+    volumes:
+      - ./certbot/letsencrypt:/etc/letsencrypt
+      - ./certbot/logs:/var/log/letsencrypt
+      - ./www:/var/www/certbot
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while :; do
+          certbot renew --webroot -w /var/www/certbot --quiet;
+          sleep 12h;
+        done
+    restart: unless-stopped
+    depends_on:
+      waf-nginx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "test", "-f", "/etc/letsencrypt/live/README"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - matrix
 
   postgres:
     image: postgres:15-alpine
@@ -69,12 +100,6 @@ services:
       - "./synapse-data:/data"
     networks:
       - matrix
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.synapse.rule=Host(`${SYNAPSE_SERVER_NAME}`)"
-      - "traefik.http.routers.synapse.entrypoints=websecure"
-      - "traefik.http.routers.synapse.tls.certresolver=leresolver"
-      - "traefik.http.services.synapse.loadbalancer.server.port=8008"
 
   element:
     image: vectorim/element-web:latest
@@ -87,12 +112,6 @@ services:
       - "./element-config.json:/app/config.json"
     networks:
       - matrix
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.element.rule=Host(`${ELEMENT_SERVER_NAME}`)"
-      - "traefik.http.routers.element.entrypoints=websecure"
-      - "traefik.http.routers.element.tls.certresolver=leresolver"
-      - "traefik.http.services.element.loadbalancer.server.port=80"
 
   coturn:
     image: coturn/coturn:latest
@@ -114,6 +133,23 @@ services:
       - "5349:5349"
       - "5349:5349/udp"
       - "49160-49200:49160-49200/udp"
+    networks:
+      - matrix
+
+  rssbot:
+    image: 4ss078/rssbot:latest
+    build:
+      context: /opt/rsstoelement/build
+      dockerfile: Dockerfile
+    container_name: synapse-rssbot
+    volumes:
+      - ./rssapp/settings.json:/app/settings.json:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    restart: unless-stopped
+    depends_on:
+      waf-nginx:
+        condition: service_healthy
     networks:
       - matrix
 

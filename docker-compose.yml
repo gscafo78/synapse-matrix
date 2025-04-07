@@ -1,57 +1,43 @@
 
 services:
-  waf-nginx:
-    image: 4ss078/waf-nginx:latest
-    container_name: waf-nginx
+  traefik:
+    image: traefik:v3.3.4
+    restart: unless-stopped
+    container_name: synapse-traefik
+    command:
+      - --providers.docker
+      - --api.insecure=true
+      - --providers.docker.watch=true
+      - --providers.docker.exposedbydefault=false  # Only expose services with traefik.enable=true
+      # - --log.level=DEBUG  # Aumenta il livello di log
+      # - --accesslog=true   # Abilita gli access log
+      - --ping=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --certificatesresolvers.leresolver.acme.tlschallenge=true
+      - --certificatesresolvers.leresolver.acme.email=${CERTBOT_MAIL}
+      - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./waf/conf.d:/etc/nginx/conf.d
-      - ./waf/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./waf/user-rules:/etc/nginx/modsec/user-rules
-      - ./certbot/letsencrypt:/etc/letsencrypt
-      - ./waf/logs:/var/log/nginx
-      - ./www:/var/www/certbot
-    restart: unless-stopped
-    networks:
-      - matrix
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-  certbot-renew:
-    image: 4ss078/certbot:latest
-    build:
-      context: ./certbot/build
-      dockerfile: Dockerfile
-    container_name: certbot-renew
-    volumes:
-      - ./certbot/letsencrypt:/etc/letsencrypt
-      - ./certbot/logs:/var/log/letsencrypt
-      - ./www:/var/www/certbot
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        while :; do
-          certbot renew --webroot -w /var/www/certbot --quiet;
-          sleep 12h;
-        done
-    restart: unless-stopped
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
     depends_on:
-      waf-nginx:
+      synapse:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "test", "-f", "/etc/letsencrypt/live/README"]
+      test: ["CMD", "traefik", "healthcheck", "--ping", "http://localhost:8080/ping"]  # Usa il comando traefik healthcheck
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
     networks:
-      - matrix
+      # - web
+      - internal
 
   postgres:
     image: postgres:15-alpine
@@ -67,7 +53,7 @@ services:
       - "postgres-data:/var/lib/postgresql/data"
       - "./postgres-config:/etc/postgresql"
     networks:
-      - matrix
+      - internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
       interval: 10s
@@ -88,24 +74,25 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=postgres
       - SYNAPSE_NO_TLS=1
-    ports:
-      - "127.0.0.1:8008:8008"
     healthcheck:
       test: ["CMD", "curl", "-fSs", "http://localhost:8008/health"]
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.synapse.rule=Host(`${SYNAPSE_SERVER_NAME}`)"
+      - "traefik.http.routers.synapse.entrypoints=websecure"
+      - "traefik.http.routers.synapse.tls.certresolver=leresolver"
+      - "traefik.http.services.synapse.loadbalancer.server.port=8008"
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - "./synapse-data:/data"
     networks:
-      - matrix
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.synapse.rule=Host(`${SYNAPSE_SERVER_NAME}`)"
-    #   - "traefik.http.routers.synapse.entrypoints=websecure"
-    #   - "traefik.http.routers.synapse.tls.certresolver=leresolver"
-    #   - "traefik.http.services.synapse.loadbalancer.server.port=8008"
+      - internal
 
   element:
     image: vectorim/element-web:latest
@@ -116,14 +103,17 @@ services:
       - VIRTUAL_PORT=80
     volumes:
       - "./element-config.json:/app/config.json"
+    depends_on:
+      synapse:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.element.rule=Host(`${ELEMENT_SERVER_NAME}`)"
+      - "traefik.http.routers.element.entrypoints=websecure"
+      - "traefik.http.routers.element.tls.certresolver=leresolver"
+      - "traefik.http.services.element.loadbalancer.server.port=80"
     networks:
-      - matrix
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.element.rule=Host(`${ELEMENT_SERVER_NAME}`)"
-    #   - "traefik.http.routers.element.entrypoints=websecure"
-    #   - "traefik.http.routers.element.tls.certresolver=leresolver"
-    #   - "traefik.http.services.element.loadbalancer.server.port=80"
+      - internal
 
   coturn:
     image: coturn/coturn:latest
@@ -139,6 +129,9 @@ services:
       - "./coturn/turnserver.conf:/etc/coturn/turnserver.conf"
       - "./letsencrypt/fullchain.pem:/etc/coturn/fullchain.pem"
       - "./letsencrypt/privkey.pem:/etc/coturn/privkey.pem"
+    depends_on:
+      synapse:
+        condition: service_healthy
     ports:
       - "3478:3478"
       - "3478:3478/udp"
@@ -146,10 +139,29 @@ services:
       - "5349:5349/udp"
       - "49160-49200:49160-49200/udp"
     networks:
-      - matrix
+      - internal
+
+  rssbot:
+    image: 4ss078/rssbot:latest
+    build:
+      context: /opt/rsstoelement/build
+      dockerfile: Dockerfile
+    container_name: synapse-rssbot
+    volumes:
+      - ./rssapp/settings.json:/app/settings.json:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    restart: unless-stopped
+    depends_on:
+      synapse:
+        condition: service_healthy
+    networks:
+      - internal
 
 networks:
-  matrix:
+  internal:
+    driver: bridge
+  web:
     driver: bridge
 
 volumes:
